@@ -1,0 +1,67 @@
+# ============================================================
+# Njoror — Valheim BepInEx Mod (.NET / C#)
+# ============================================================
+
+# ----- Build output -----
+bin/
+obj/
+
+# ----- NuGet packages -----
+# Restore via `dotnet restore`; don't commit downloaded packages
+packages/
+*.nupkg
+*.snupkg
+.nuget/
+
+# ----- Local / vendored game DLLs -----
+# These are copyrighted Valheim / Unity binaries — never commit them.
+# Devs resolve them via AssemblySearchPaths pointing at their local
+# Valheim install, or by symlinking into libs/.
+libs/*.dll
+libs/*.pdb
+
+# ----- User-specific IDE / OS files -----
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.DS_Store
+
+# VS Code (keep .vscode/extensions.json & tasks.json if you want,
+# but ignore personal settings and launch configs)
+.vscode/settings.json
+.vscode/launch.json
+
+# macOS metadata
+.DS_Store
+**/.DS_Store
+__MACOSX/
+
+# Windows thumbnails / desktop config
+Thumbs.db
+Desktop.ini
+
+# ----- Rider / Resharper -----
+_ReSharper*/
+*.DotSettings.user
+
+# ----- JetBrains Rider rider project files -----
+.idea/
+
+# ----- Test results -----
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# ----- Packaging artifacts -----
+# Zip bundles produced for Thunderstore / Nexus uploads
+*.zip
+dist/
+release/
+
+# ----- Logs -----
+*.log
