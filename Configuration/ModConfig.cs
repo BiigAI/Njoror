@@ -10,6 +10,8 @@ namespace Njoror.Configuration
         public static ConfigEntry<float> HeadwindMitigationPercent { get; private set; } = null!;
         public static ConfigEntry<float> MinimumWindSpeedMultiplier { get; private set; } = null!;
         public static ConfigEntry<bool> AlwaysTailwindInOcean { get; private set; } = null!;
+        public static ConfigEntry<bool> CheckDeflectOnWindChange { get; private set; } = null!;
+        public static ConfigEntry<int> CheckDeflectTimeSeconds { get; private set; } = null!;
 
         // ── Section 2: Ocean Weather & Storms ──────────────────────────────────
         public static ConfigEntry<bool> EnableWeatherTuning { get; private set; } = null!;
@@ -24,6 +26,8 @@ namespace Njoror.Configuration
         public static ConfigEntry<float> SerpentSpawnIntervalSeconds { get; private set; } = null!;
         public static ConfigEntry<bool> AllowCalmWeatherDaySerpents { get; private set; } = null!;
 
+        public static ConfigEntry<bool> EnableDebugLogging { get; private set; } = null!;
+
         public static void Initialize(ConfigFile config)
         {
             // ── Section 1: Fair Winds ──────────────────────────────────────────
@@ -31,7 +35,7 @@ namespace Njoror.Configuration
                 "1 - Fair Winds",
                 "EnableFairWinds",
                 true,
-                "Enable server-authoritative fair winds algorithm to bias against strict headwinds while sailing."
+                "Enable fair winds while a client with Njoror reports that it is aboard a ship. The server validates and applies the global wind change."
             );
 
             HeadwindMitigationPercent = config.Bind(
@@ -58,7 +62,24 @@ namespace Njoror.Configuration
                 "1 - Fair Winds",
                 "AlwaysTailwindInOcean",
                 false,
-                "If enabled, players sailing in the deep Ocean biome will strictly receive tailwinds or broad reaches."
+                "If enabled, an active Njoror client sailing in the Ocean biome receives a global tailwind or broad reach."
+            );
+
+            CheckDeflectOnWindChange = config.Bind(
+                "1 - Fair Winds",
+                "CheckDeflectOnWindChange",
+                true,
+                "If enabled, evaluate fair-wind deflection only when Valheim selects a new wind target. This takes priority over timed checks."
+            );
+
+            CheckDeflectTimeSeconds = config.Bind(
+                "1 - Fair Winds",
+                "CheckDeflectTimeSeconds",
+                0,
+                new ConfigDescription(
+                    "When CheckDeflectOnWindChange is disabled, re-evaluate fair winds at this interval. Set to 0 to disable timed checks.",
+                    new AcceptableValueRange<int>(0, 3600)
+                )
             );
 
             // ── Section 2: Weather & Storms ────────────────────────────────────
@@ -142,6 +163,13 @@ namespace Njoror.Configuration
                 "AllowCalmWeatherDaySerpents",
                 false,
                 "If true, Sea Serpents can spawn during daytime even when it is not storming or raining."
+            );
+
+            EnableDebugLogging = config.Bind(
+                "4 - Diagnostics",
+                "EnableDebugLogging",
+                false,
+                "Enable detailed Njoror diagnostic logs. Errors and successful headwind deflections are always logged."
             );
         }
     }

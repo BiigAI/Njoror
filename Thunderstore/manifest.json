@@ -1,0 +1,10 @@
+{
+  "name": "Njoror_FairWinds",
+  "version_number": "1.0.0",
+  "website_url": "https://github.com/BiigAI/Njoror",
+  "description": "Jotunn client/server fair winds plus server weather modulation and ocean serpent spawner controls for Valheim.",
+  "dependencies": [
+    "denikson-BepInExPack_Valheim-5.4.2333",
+    "ValheimModding-Jotunn-2.23.0"
+  ]
+}

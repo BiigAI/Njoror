@@ -8,42 +8,30 @@ namespace Njoror.Logic
     public static class OceanWindEngine
     {
         private static readonly System.Random _rng = new System.Random();
+        private static Vector3 _timedWindDirection;
+        private static bool _hasTimedWindDirection;
+        private static float _nextTimedCheckAt;
 
         /// <summary>
         /// Evaluates whether the calculated wind angle creates a dead headwind against active sailing ships.
         /// If so, shifts the wind angle into a favorable crosswind/tailwind according to the configured mitigation percentage.
         /// </summary>
-        public static Vector3 AdjustWindForSailing(Vector3 baseWindDir, float baseWindAngle)
+        public static Vector3 AdjustWindForSailing(Vector3 baseWindDir)
         {
+            NjororPlugin.LogDebug("[Njoror][Diag] AdjustWindForSailing entered.");
             if (!ModConfig.EnableFairWinds.Value)
-                return baseWindDir;
-
-            if (Player.s_players == null || Player.s_players.Count == 0)
-                return baseWindDir;
-
-            // Check if any player is actively piloting/sitting in a ship
-            Ship? activeShip = null;
-            foreach (var p in Player.s_players)
             {
-                if (p != null && !p.IsDead())
-                {
-                    Ship standingShip = p.GetStandingOnShip();
-                    if (standingShip != null)
-                    {
-                        activeShip = standingShip;
-                        break;
-                    }
-                }
+                NjororPlugin.LogDebug("[Njoror][Diag] Fair winds skipped: disabled by configuration.");
+                return baseWindDir;
             }
 
-            if (activeShip == null)
+            if (!SailingStateNetwork.TryGetActiveSailingState(out Vector3 shipForward, out bool activeShipInOcean))
+            {
+                NjororPlugin.LogDebug("[Njoror][Diag] Fair winds skipped: no fresh client sailing-state report.");
                 return baseWindDir;
+            }
 
             // Calculate angle between ship heading forward and wind direction
-            Vector3 shipForward = activeShip.transform.forward;
-            shipForward.y = 0;
-            shipForward.Normalize();
-
             Vector3 windNormalized = baseWindDir;
             windNormalized.y = 0;
             windNormalized.Normalize();
@@ -54,12 +42,9 @@ namespace Njoror.Logic
             // If ocean mode is forced tailwind
             if (ModConfig.AlwaysTailwindInOcean.Value)
             {
-                Heightmap.Biome currentBiome = WorldGenerator.instance != null 
-                    ? WorldGenerator.instance.GetBiome(activeShip.transform.position.x, activeShip.transform.position.z) 
-                    : Heightmap.Biome.Ocean;
-
-                if (currentBiome == Heightmap.Biome.Ocean)
+                if (activeShipInOcean)
                 {
+                    NjororPlugin.LogDebug("[Njoror][Diag] Ocean tailwind applied.");
                     return shipForward;
                 }
             }
@@ -75,10 +60,14 @@ namespace Njoror.Logic
                     Quaternion rotation = Quaternion.Euler(0f, deflectSign * 80f, 0f);
                     Vector3 deflectedWind = rotation * shipForward;
                     deflectedWind.y = 0;
+                    NjororPlugin.Log.LogInfo($"[Njoror] Headwind deflected; roll={roll:F2}.");
                     return deflectedWind.normalized;
                 }
+
+                NjororPlugin.LogDebug($"[Njoror][Diag] Headwind retained; roll={roll:F2}.");
             }
 
+            NjororPlugin.LogDebug("[Njoror][Diag] Fair winds retained the base direction.");
             return baseWindDir;
         }
 
@@ -88,13 +77,51 @@ namespace Njoror.Logic
                 return baseIntensity;
 
             float minMulti = ModConfig.MinimumWindSpeedMultiplier.Value;
-            return Mathf.Max(baseIntensity * minMulti, 0.25f);
+            float adjustedIntensity = Mathf.Max(baseIntensity * minMulti, 0.25f);
+            return adjustedIntensity;
+        }
+
+        public static bool TryGetTimedWindOverride(Vector3 baseWindDirection, out Vector3 windDirection, out bool decisionMade)
+        {
+            windDirection = baseWindDirection;
+            decisionMade = false;
+
+            if (ModConfig.CheckDeflectOnWindChange.Value || ModConfig.CheckDeflectTimeSeconds.Value <= 0)
+            {
+                _hasTimedWindDirection = false;
+                return false;
+            }
+
+            if (Time.unscaledTime >= _nextTimedCheckAt)
+            {
+                _nextTimedCheckAt = Time.unscaledTime + ModConfig.CheckDeflectTimeSeconds.Value;
+                _timedWindDirection = AdjustWindForSailing(baseWindDirection);
+                _hasTimedWindDirection = true;
+                decisionMade = true;
+                NjororPlugin.LogDebug($"[Njoror][Diag] Timed fair-wind check completed; next check in {ModConfig.CheckDeflectTimeSeconds.Value}s.");
+            }
+
+            if (!_hasTimedWindDirection)
+                return false;
+
+            windDirection = _timedWindDirection;
+            return true;
         }
 
         public static void ApplyEnvironmentWeights(List<EnvEntry> environments)
         {
-            if (!ModConfig.EnableWeatherTuning.Value || environments == null)
+            NjororPlugin.LogDebug("[Njoror][Diag] ApplyEnvironmentWeights entered.");
+            if (!ModConfig.EnableWeatherTuning.Value)
+            {
+                NjororPlugin.LogDebug("[Njoror][Diag] Environment tuning skipped: disabled by configuration.");
                 return;
+            }
+
+            if (environments == null)
+            {
+                NjororPlugin.LogDebug("[Njoror][Diag] Environment tuning skipped: environment list was null.");
+                return;
+            }
 
             foreach (var entry in environments)
             {
@@ -115,6 +142,8 @@ namespace Njoror.Logic
                     entry.m_weight *= ModConfig.ClearWeatherFrequencyMultiplier.Value;
                 }
             }
+
+            NjororPlugin.LogDebug($"[Njoror][Diag] Environment tuning processed {environments.Count} entry(s).");
         }
     }
 }
